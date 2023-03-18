@@ -15,9 +15,19 @@
 	db 0,0,0,0,0,0,0
 
 
+itemchoices equ $00 	; variable for item choices; 1=cake, 0=bomb
 playerpos equ $01	; variable for player's position
 playerbuttons equ $02	; variable for player's buttons
-walkanimation equ $0A	; for walking animation of player
+playerlives equ $03
+playerscore_lo equ $04
+playerscore_hi equ $05
+tickdown equ $06
+tickup equ $07
+maxitems equ $08
+fallframerate equ $09
+bombcount equ $10	; TODO: may be unnecessary
+
+walkanimation equ $FF	; for walking animation of player
 
 nmihandler:
 	pha
@@ -155,14 +165,11 @@ spriteload:
 	lda sprites,x	; Load tiles, x and y attributes
 	sta $0200,x
 	inx
-	cpx #$20
+	cpx #$4
 	bne spriteload
 
-	lda #$5A
-	sta playerpos
 
 ; Setup background
-
 
 
 	ldy #$FF
@@ -255,9 +262,12 @@ birthday:
 	lda backgrounddata_words,x
 	sta $2007
 	inx
-	cpx #$0D
+	cpx #$0E
 	bne birthday
 
+
+		
+	;this clump may be redundant-chk&dlt
 	clc
 	lda $08
 	adc #32
@@ -269,15 +279,6 @@ birthday:
 	sta $2006
 
 
-tommy:
-	; do not reset x, keep going
-	
-	lda backgrounddata_words,x
-	sta $2007
-	inx
-	cpx #$15
-	bne tommy
-
 
 	lda $2002
 	lda #$00
@@ -285,6 +286,31 @@ tommy:
 	sta $2005
 	
 
+; initialization of game data
+	;itemchoices equ $00 	; variable for item choices; 1=cake, 0=bomb
+
+	lda #$5A		; Player position
+	sta playerpos 
+
+	lda #3			; Start with 3 lives
+	sta playerlives
+	
+	lda #0
+	sta playerscore_lo
+	sta playerscore_hi
+	sta tickup		; number of seconds passed 
+
+	lda #60
+	sta tickdown		; frames in a second	
+
+	lda #30
+	sta fallframerate	; takes 30 frames to move down	
+	
+	lda #1
+	sta maxitems		; only 1 item falling at start
+
+
+	' turn screen on
 	lda #%00011110
 	sta $2001
 	lda #$88
@@ -335,18 +361,6 @@ initial_palette:
 sprites:
 
 	db $98, $01, $02, $78 ; Girl #1
-	db $98, $02, $42, $85 ; Girl #2
-	
-
-	db $98, $04, $01, $80 ; Cake
-
-
-	db $30, $0B, $00, $55 ; Explosions!
-	db $28, $0B, $00, $5d
-	db $28, $0B, $00, $9d
-	db $30, $0B, $00, $a5
-
-	db $48, $11, $00, $7d ; Bomb - uh oh!
 
 ; Background data
 	
@@ -356,8 +370,8 @@ backgrounddata_walls:
 
 backgrounddata_words:
 	db $09,$02,$11,$11,$1A			; HAPPY
-	db $03,$0A,$13,$15,$09,$05,$02,$1A	; BIRTHDAY
-	db $15,$10,$0E,$0E,$1A,$1C,$1C,$1C	; TOMMY!!!
+	db $03,$0A,$13,$15,$09,$05,$02,$1A, $1C	; BIRTHDAY
+
 
 
 
