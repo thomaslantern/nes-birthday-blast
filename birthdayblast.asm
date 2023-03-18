@@ -25,6 +25,8 @@ tickdown equ $06
 tickup equ $07
 maxitems equ $08
 fallframerate equ $09
+
+
 bombcount equ $10	; TODO: may be unnecessary
 
 walkanimation equ $FF	; for walking animation of player
@@ -33,57 +35,40 @@ nmihandler:
 	pha
 	php
 
-	lda #1		; Begin logging controller input
-	sta $4016	; Controller 1
-	lda #0		; Finish logging
-	sta $4016	; Controller 1
-
-	ldx #8
-readctrlloop:
-	pha		; Put accumulator on stack
-	lda $4016	; Read next bit from controller
-
-	and #%00000011	; If button is active on 1st controller,
-	cmp #%00000001	; this will set the carry
-	pla		; Retrieve current button list from stack
-
-	ror		; Rotate carry onto bit 7, push other
-			; bits one to the right
-
-	dex		
-	bne readctrlloop
+	jsr readcontroller
 	
-	sta playerbuttons	
-
-checkright:
-	lda playerbuttons	; Load buttons
-	and #%10000000		; Bit 7 is "right"
-	beq checkleft		; Skip move if zero/not pressed
-	moveright:
-		clc
-		lda playerpos	; Load current position
-		cmp #$A9	; Make sure it's not $A9
-		beq noadd	; If it is, don't move!
-		adc #1		; If it's not, add 1 to x-position
-		sta playerpos	; Store in playerpos
-		jsr animategirl
-checkleft:
-	lda playerbuttons
-	and #%01000000		; Bit 6 is "left"
-	beq storenewpos		; Skip move if zero/not pressed
-	moveleft:		; (Sim. to code above but for moving left)
-		clc
-		lda #$4F	; Don't move left past $4F (wall)
-		cmp playerpos
-		beq noadd
-		lda playerpos	; Ok to move
-		adc #255	; Add 255 (= -1) to position
-		sta playerpos	; Store in playerpos
-		jsr animategirl
-
-
-noadd:
+	ldx tickdown
+	dex
+	stx tickdown
+	cpx #0
 	
+	bne chkcollisions
+	
+	jsr tickupdates
+	
+
+chkcollisions:
+		
+	; check collisions (floor, player)
+	; make sure to randomize x position after collision with floor!
+	; (but don't ever give starting position for hey gurl)
+
+
+chkframerate:
+	
+	; Only move if fallframerate + tickdown < 60
+	lda tickdown
+	clc
+	adc #fallframerate
+	cmp #60
+	bpl storenewpos
+
+	jsr moveitems
+
+
+	; check add new items? (run through all items until maxitems reached)
+	; ^^ roll new item if necessary?		
+
 	
 storenewpos:
 	lda playerpos
@@ -286,8 +271,11 @@ birthday:
 	sta $2005
 	
 
-; initialization of game data
-	;itemchoices equ $00 	; variable for item choices; 1=cake, 0=bomb
+	; Initialization of game data
+
+
+	lda #%11111111		; All cakes as options to start
+	sta itemchoices
 
 	lda #$5A		; Player position
 	sta playerpos 
@@ -310,7 +298,7 @@ birthday:
 	sta maxitems		; only 1 item falling at start
 
 
-	' turn screen on
+	; turn screen on
 	lda #%00011110
 	sta $2001
 	lda #$88
@@ -323,6 +311,7 @@ forever:
 	jmp forever
 
 
+; Walking Animation
 animategirl:
 	ldx walkanimation
 	dex
@@ -333,18 +322,189 @@ movegirl:
 	ldx #4
 	stx walkanimation
 	lda $0201
-	cmp #$01
+	cmp #$00
 	beq standnow
 	jmp walknow
 standnow:
-	lda #$02
-	sta $0201
-	rts
-walknow:
 	lda #$01
 	sta $0201
 	rts
+walknow:
+	lda #$00
+	sta $0201
+	rts
 
+; Controller Input Reading
+readcontroller:
+	lda #1		; Begin logging controller input
+	sta $4016	; Controller 1
+	lda #0		; Finish logging
+	sta $4016	; Controller 1
+
+	ldx #8
+readctrlloop:
+	pha		; Put accumulator on stack
+	lda $4016	; Read next bit from controller
+
+	and #%00000011	; If button is active on 1st controller,
+	cmp #%00000001	; this will set the carry
+	pla		; Retrieve current button list from stack
+
+	ror		; Rotate carry onto bit 7, push other
+			; bits one to the right
+
+	dex		
+	bne readctrlloop
+	
+	sta playerbuttons	
+
+checkright:
+	lda playerbuttons	; Load buttons
+	and #%10000000		; Bit 7 is "right"
+	beq checkleft		; Skip move if zero/not pressed
+	moveright:
+		clc
+		lda playerpos	; Load current position
+		cmp #$A9	; Make sure it's not $A9
+		beq noadd	; If it is, don't move!
+		adc #1		; If it's not, add 1 to x-position
+		sta playerpos	; Store in playerpos
+		jsr animategirl
+checkleft:
+	lda playerbuttons
+	and #%01000000		; Bit 6 is "left"
+	beq noadd		; Skip move if zero/not pressed
+	moveleft:		; (Sim. to code above but for moving left)
+		clc
+		lda #$4F	; Don't move left past $4F (wall)
+		cmp playerpos
+		beq noadd
+		lda playerpos	; Ok to move
+		adc #255	; Add 255 (= -1) to position
+		sta playerpos	; Store in playerpos
+		jsr animategirl
+
+
+noadd:
+	rts	
+
+
+tickupdates:
+	; check to add tick up (tickdown == 0; reset tickdown)
+	; check to add maxitems (tickup == 60; reset tickup)
+	; check to sub fallframerate (tickup == 60; reset tickup)
+	
+	lda tickup
+	clc
+	adc #1
+	cmp #60		; Has a minute passed?
+	bne keepcounting
+
+	; Reset tickup, update maxitems, fallframerate
+	; and add one more bomb to item choices
+
+	lda #0
+	sta tickup	; New minute begins
+
+	ldx maxitems
+	cpx #7		; Check if 7 items already falling
+	beq checkchoices
+
+	inx
+	stx maxitems	; One more item can fall now
+
+checkchoices:
+	lda itemchoices
+	cmp #%10000000	; Check if already hardest setting
+	beq frameupdate
+	lsr		; Rotate one more cake off list
+
+frameupdate:
+	ldx fallframerate
+	cpx #5
+	beq resetclock
+	
+	txa
+	sec
+	sbc #5
+	sta fallframrate
+
+keepcounting:
+	rts	
+
+
+; Move items
+moveitems:
+
+
+	ldx #0
+checkmove:
+	lda $2002
+	inx
+	txa
+	
+	; Multiply by four because
+	; there are 4 attribs per tile
+	asl
+	asl	
+	tay
+
+	;0200-0203 y-coord, tile#, attrib, x-coord
+	; first tile is player
+	; next 7 tiles are potential/actual items
+	; loop through them
+	; if it's explosion 1, set to explosion 2
+	; if it's a bomb or a cake, move it down
+	; (assuming we've already checked collision with player/floors
+
+	
+	;attrib irrelevant
+	;x-coord will never change here
+	;only care about tile and y-coord
+	
+	iny	; skip x-coord
+	
+	;0204-0203 item 1
+	lda $0200,y
+	; explosion1 check
+	cmp #$03
+	bne exp2chk
+	lda #$04
+	sta $0200,y
+	jmp cakebombchk
+	
+exp2chk:
+	; explosion2 check
+	jmp donemoving
+
+cakebombchk:
+	; If it's not an explosion
+	; it must be a bomb or cake
+	; move down if it's on the screen
+	; and not busy colliding/killing someone
+	
+	iny	; now checking attrib, don't care, moving on
+	iny	; now checking y-attrib
+
+	lda $0200,y
+	
+	; START FROM HERE
+	; Check if on the screen (between what and what???)
+	
+	; CAN YOU LABEL THE SAME NUMBER TWICE??
+	; CAN YOU DO sta $addy,y ???
+
+
+
+movedown:
+
+donemoving:	
+	cpy maxitems
+	bne checkmove
+
+
+	rts
+	
 
 
 initial_palette:
@@ -360,7 +520,7 @@ initial_palette:
 
 sprites:
 
-	db $98, $01, $02, $78 ; Girl #1
+	db $98, $00, $02, $78 ; Girl #1
 
 ; Background data
 	
@@ -784,25 +944,8 @@ background_tile_end:
 
 sprite_tile_start:
 
-	db %00000000	; "Cake" (0)
-	db %00011100
-	db %00111110
-	db %00111110
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
 
-	db %00000000	; "bitplane2"
-	db %00000000
-	db %00111110
-	db %00111110
-	db %01111110
-	db %01111110
-	db %01111110
-	db %01111110
-
-	db %00000000	; "Person walk" (1)
+	db %00000000	; "Person walk" (0)
 	db %00011100
 	db %00010000
 	db %00010000
@@ -820,7 +963,7 @@ sprite_tile_start:
 	db %00001100
 	db %00000000
 
-	db %00000000	; "Person standing" (2)
+	db %00000000	; "Person standing" (1)
 	db %00011100
 	db %00010000
 	db %00010000
@@ -838,62 +981,7 @@ sprite_tile_start:
 	db %00001100
 	db %00000000
 
-	db %00000000	; "bomb" (3)
-	db %00001000
-	db %00111110
-	db %01111111
-	db %01111111
-	db %01111111
-	db %00111110
-	db %00011100
-
-	db %00011000	; "bomb bp2"
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-
-			
-	db %00000000	; "Cake 2" (4)
-	db %00000000
-	db %00000000
-	db %00000000	
-	db %00010000
-	db %00000000
-	db %01111100
-	db %01111100
-
-	db %00000000	; "Cake 2 bitplane2"
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00111000
-	db %01111100
-	db %01111100
-
-	db %00000000	; "Person 2 walk" (5)
-	db %00111000
-	db %00101000
-	db %00000000
-	db %00111000
-	db %00111000
-	db %00111000
-	db %00000000
-
-	db %00000000	; "Person 2 walk bp2"
-	db %00010000
-	db %00010000
-	db %00111000
-	db %00000100
-	db %00000000
-	db %00000000
-	db %00101000
-
-	db %00000000	; "bomb 2" (6)
+	db %00000000	; "bomb" (2)
 	db %00001000
 	db %00111100
 	db %01111110	
@@ -903,7 +991,7 @@ sprite_tile_start:
 	db %00000000
 
 
-	db %00001000	; "bomb 2 bp2"
+	db %00001000	; "bomb bp2"
 	db %00000000
 	db %00000000
 	db %00000000
@@ -912,80 +1000,8 @@ sprite_tile_start:
 	db %00000000
 	db %00000000	
 
-		
-	db %00000000	; "Cake 3" (7)
-	db %00000000
-	db %00000000
-	db %00000000	
-	db %00011000
-	db %00000000
-	db %00111100
-	db %01111110
 
-	db %00000000	; "Cake 3 bitplane2"
-	db %00000000
-	db %00000000
-	db %00011000
-	db %00000000
-	db %00111100
-	db %00000000
-	db %00000000
-
-	db %00111000	; "Person 3 walk" (8)
-	db %00101000
-	db %00000000
-	db %00110000
-	db %00110000
-	db %00110000
-	db %01001000
-	db %00000000
-
-	db %00000000	; "Person 3 walk bp2"
-	db %00011000
-	db %00111000
-	db %00000000
-	db %00001000
-	db %00000000
-	db %00000000
-	db %00000000
-
-	db %00111000	; "Person 3 stand" (9)
-	db %00101000
-	db %00000000
-	db %00110000
-	db %00110000
-	db %00110000
-	db %00110000
-	db %00000000
-
-	db %00000000	; "Person 3 stand bp2"
-	db %00011000
-	db %00111000
-	db %00000000
-	db %00001000
-	db %00000000
-	db %00000000
-	db %00000000
-
-	db %00000000	; "bomb 3" (A)
-	db %00010000
-	db %00111000
-	db %01111100	
-	db %01111100	
-	db %01111100	
-	db %00111000	
-	db %00000000
-
-	db %00110000	; "bomb 3 bp2"
-	db %00010000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000	
-
-	db %00000000	; "bomb explosion!" (B)
+	db %00000000	; "bomb explosion!" (3)
 	db %00000000
 	db %00000000
 	db %00000000	
@@ -1004,66 +1020,27 @@ sprite_tile_start:
 	db %01111100
 	db %00100110	
 
-	db %00000000	; "Person 4" (C)
-	db %00000000
-	db %00000000
-	db %00011000	
-	db %00011000	
-	db %00011000	
-	db %00111100	
-	db %00000000
-
-
-	db %00000000	; "Person 4 bp2"
-	db %00011000
-	db %00011000
-	db %01111110
-	db %00011000
-	db %00000000
-	db %00000000
-	db %00000000	
-
-
-	db %00000000	; "Person 5" (D)
-	db %00000000
-	db %00000000
-	db %00000000	
-	db %00000000	
-	db %01010101	
-	db %00111111	
+	db %00000100	; "bomb explosion! 2 (4)"
+	db %01101010
+	db %10111101
 	db %01111111
-
-
-	db %00000000	; "bp2"
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000010
-	db %00000000
-	db %00000000	
-
-
-	db %00000000	; "Cake 4" (E)
-	db %00000000
-	db %00000000
-	db %00111000	
-	db %00000000	
-	db %00111000	
-	db %00000000	
+	db %11111110
+	db %10111111
 	db %01111100
+	db %00100110
 
 
-	db %00000000	; "cake 4 bp2"
-	db %00000000
-	db %00000000
-	db %00111000
-	db %00111000
-	db %00111000
-	db %00111000
-	db %00000000	
+	db %00000100	; "explosion bp2"
+	db %01101010
+	db %10111101
+	db %01111111
+	db %11111110
+	db %10111111
+	db %01111100
+	db %00100110	
 
-	db %00000000	; "Cake 5" (E)
+
+	db %00000000	; "Cake" (5)
 	db %00000000
 	db %00000000
 	db %00111100	
@@ -1073,205 +1050,17 @@ sprite_tile_start:
 	db %01111110
 
 
-	db %00000000	; "Cake 5 bp2"
+	db %00000000	; "Cake bp2"
 	db %00000000
 	db %00000000
 	db %00000000
 	db %00111100
-	db %00000000
-	db %00111100
-	db %00000000	
-
-	db %00000000	; "Cake 6" (F)
-	db %00000000
-	db %00000000
-	db %00011000	
-	db %00011000	
-	db %00111100	
-	db %00111100	
-	db %01111110
-
-
-	db %00000000	; "Cake 6 bp2"
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00011000
 	db %00000000
 	db %00111100
 	db %00000000	
 
-	db %00001100
-	db %00001000	; "Bomb 4" (10)
-	db %00011000
-	db %00111100
-	db %01111110
-	db %01111110
-	db %00111100
-	db %00011000
 
-
-	db %00001100	; "bp2"
-	db %00001000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000
-	db %00000000		
 	
-	db %00011000
-	db %00100100	; "Girl" (11)
-	db %00100100
-	db %00111100
-	db %00111100
-	db %00111100
-	db %01111110
-	db %00000000
-
-
-	db %00000000	; "bp2"
-	db %00011000
-	db %00011000
-	db %00111100
-	db %00011000
-	db %00111100
-	db %01111110
-	db %00100100
-
-	db %00110000
-	db %01100000	; "Sideview girl" (12)
-	db %01100000
-	db %01110000
-	db %01110000
-	db %01111000
-	db %11111100
-	db %00000000
-
-
-	db %00000000	; "bp2"
-	db %00010000
-	db %00010000
-	db %00111000
-	db %00110000
-	db %01111000
-	db %11111100
-	db %01001000
-
-	db %00011000
-	db %00010000	; "Boy" (13)
-	db %00010000
-	db %00011100
-	db %00011000
-	db %00011000
-	db %01111000
-	db %01001100
-
-
-	db %00000000	; "bp2"
-	db %00001000
-	db %00001000
-	db %00011110
-	db %00111000
-	db %00011000
-	db %01111000
-	db %01001100
-
-	db %00011000
-	db %00000000	; "Boy standing" (14)
-	db %00000000
-	db %00111100
-	db %00011000
-	db %00011000
-	db %00011000
-	db %00111100
-
-
-	db %00000000	; "bp2"
-	db %00011000
-	db %00011000
-	db %00111100
-	db %00111100
-	db %00111100
-	db %00011000
-	db %00111100
-
-
-	db %01110000
-	db %01010000	; "Boy 2 walking" (15)
-	db %01000000
-	db %00000000
-	db %00110000
-	db %00110000
-	db %00110000
-	db %01001000
-
-
-	db %00000000	; "bp2"
-	db %00110000
-	db %00111000
-	db %00110000
-	db %00110000
-	db %00111000
-	db %00110000
-	db %00000000
-
-	db %01110000
-	db %01010000	; "Boy 2 standing" (16)
-	db %01000000
-	db %00000000
-	db %00110000
-	db %00110000
-	db %00110000
-	db %00110000
-
-
-	db %00000000	; "bp2"
-	db %00110000
-	db %00111000
-	db %00110000
-	db %00110000
-	db %00111000
-	db %00110000
-	db %00000000
-
-	db %00000000
-	db %00000000	; "tiny man" (17)
-	db %00000000
-	db %00010000
-	db %00011000
-	db %00010000
-	db %00010000
-	db %00010000
-
-
-	db %00000000	; "bp2"
-	db %00000000
-	db %00010000
-	db %00010000
-	db %00011100
-	db %00010000
-	db %00000000
-	db %00000000
-
-	db %00000000
-	db %00000000	; "tiny man walking" (18)
-	db %00000000
-	db %00010000
-	db %00011000
-	db %00010000
-	db %00010000
-	db %00101000
-
-
-	db %00000000	; "bp2"
-	db %00000000
-	db %00010000
-	db %00010000
-	db %00011100
-	db %00010000
-	db %00000000
-	db %00000000
 
 
 sprite_tile_end
