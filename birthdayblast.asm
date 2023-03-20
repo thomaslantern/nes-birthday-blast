@@ -298,12 +298,15 @@ birthday:
 	lda #1
 	sta maxitems		; only 1 item falling at start
 
+	; First cake
+	lda #$30
+	sta $0204		; Store starting y-coord
 	lda #5			; Tile # for cake
-	sta $0201		; Store it as first falling item
-	lda #$77
-	sta $0203		; Store starting x-coord
-	lda #$38
-	sta $0200		; Store starting y-coord
+	sta $0205		; Store it as first falling item
+	lda #$02
+	sta $0206
+	lda #$7F
+	sta $0207		; Store starting x-coord
 
 
 	; turn screen on
@@ -407,6 +410,7 @@ tickupdates:
 	lda tickup
 	clc
 	adc #1
+	sta tickup
 	cmp #60		; Has a minute passed?
 	bne keepcounting
 
@@ -424,7 +428,7 @@ tickupdates:
 	stx maxitems	; One more item can fall now
 	; Initialize the new item here?
 	; for now just initialize it as a cake
-	; so we can get on with life LOLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLZ
+
 	
 	; Take x value, the 1+xth tile is now a cake
 	; $0201 + (x*4) to get current tile
@@ -435,6 +439,14 @@ tickupdates:
 	
 	lda #5
 	sta $0201,y
+	lda #$30
+	sta $0200,y		; Store starting y-coord
+	
+	lda #$02
+	sta $0202,y
+	lda #$3F
+	sta $0203,y		; Store starting x-coord
+
 	
 
 
@@ -461,7 +473,6 @@ keepcounting:
 
 ; Move items
 moveitems:
-
 
 	ldx #0
 checkmove:
@@ -491,17 +502,17 @@ checkmove:
 	iny	; skip x-coord
 	
 	;0204-0207 item 1
-	lda $0204,y
+	lda $0200,y
 	; explosion1 check
 	cmp #$03
 	bne exp2chk	; If not explosion1, chk if explosion2
 	lda #$04
-	sta $0204,y
+	sta $0200,y
 	jmp donemoving
 	
 exp2chk:
 	; explosion2 check
-	lda $0204,y
+	lda $0200,y
 	cmp #$04
 	bne cakebombchk	; If not explosion2, chk if cake/bomb
 	
@@ -516,18 +527,13 @@ cakebombchk:
 	; move down if it's on the screen
 	; and not busy colliding/killing someone
 	
-	iny	; move from tile number to attrib
-	;now checking attrib, don't care, moving on
-	iny	; move from attrib to y-coord
-
-	lda $0204,y
+	dey	; move from tile number to y-coord
+	lda $0200,y
 	clc
 	adc #1
-	sta $0204,y
+	sta $0200,y
 	
 	
-
-
 movedown:
 
 donemoving:	
