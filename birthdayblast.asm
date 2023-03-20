@@ -25,6 +25,7 @@ tickdown equ $06
 tickup equ $07
 maxitems equ $08
 fallframerate equ $09
+temppos equ $0A
 
 
 bombcount equ $10	; TODO: may be unnecessary
@@ -297,6 +298,13 @@ birthday:
 	lda #1
 	sta maxitems		; only 1 item falling at start
 
+	lda #5			; Tile # for cake
+	sta $0201		; Store it as first falling item
+	lda #$77
+	sta $0203		; Store starting x-coord
+	lda #$38
+	sta $0200		; Store starting y-coord
+
 
 	; turn screen on
 	lda #%00011110
@@ -393,7 +401,9 @@ tickupdates:
 	; check to add tick up (tickdown == 0; reset tickdown)
 	; check to add maxitems (tickup == 60; reset tickup)
 	; check to sub fallframerate (tickup == 60; reset tickup)
-	
+	lda #60
+	sta tickdown
+
 	lda tickup
 	clc
 	adc #1
@@ -412,22 +422,38 @@ tickupdates:
 
 	inx
 	stx maxitems	; One more item can fall now
+	; Initialize the new item here?
+	; for now just initialize it as a cake
+	; so we can get on with life LOLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLZ
+	
+	; Take x value, the 1+xth tile is now a cake
+	; $0201 + (x*4) to get current tile
+	txa
+	rol
+	rol
+	tay
+	
+	lda #5
+	sta $0201,y
+	
+
 
 checkchoices:
 	lda itemchoices
 	cmp #%10000000	; Check if already hardest setting
 	beq frameupdate
-	lsr		; Rotate one more cake off list
+	asl		; Rotate one more cake off list
+	sta itemchoices
 
 frameupdate:
 	ldx fallframerate
 	cpx #5
-	beq resetclock
+	beq keepcounting
 	
 	txa
 	sec
 	sbc #5
-	sta fallframrate
+	sta fallframerate
 
 keepcounting:
 	rts	
@@ -464,17 +490,24 @@ checkmove:
 	
 	iny	; skip x-coord
 	
-	;0204-0203 item 1
-	lda $0200,y
+	;0204-0207 item 1
+	lda $0204,y
 	; explosion1 check
 	cmp #$03
-	bne exp2chk
+	bne exp2chk	; If not explosion1, chk if explosion2
 	lda #$04
-	sta $0200,y
-	jmp cakebombchk
+	sta $0204,y
+	jmp donemoving
 	
 exp2chk:
 	; explosion2 check
+	lda $0204,y
+	cmp #$04
+	bne cakebombchk	; If not explosion2, chk if cake/bomb
+	
+	; We don't want it to be an explosion anymore
+	; pick a new item
+
 	jmp donemoving
 
 cakebombchk:
@@ -483,23 +516,22 @@ cakebombchk:
 	; move down if it's on the screen
 	; and not busy colliding/killing someone
 	
-	iny	; now checking attrib, don't care, moving on
-	iny	; now checking y-attrib
+	iny	; move from tile number to attrib
+	;now checking attrib, don't care, moving on
+	iny	; move from attrib to y-coord
 
-	lda $0200,y
+	lda $0204,y
+	clc
+	adc #1
+	sta $0204,y
 	
-	; START FROM HERE
-	; Check if on the screen (between what and what???)
 	
-	; CAN YOU LABEL THE SAME NUMBER TWICE??
-	; CAN YOU DO sta $addy,y ???
-
 
 
 movedown:
 
 donemoving:	
-	cpy maxitems
+	cpx maxitems
 	bne checkmove
 
 
