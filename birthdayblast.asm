@@ -57,11 +57,9 @@ nmihandler:
 	jsr tickupdates
 	
 
-chkcollisions:
-		
-	; check collisions (floor, player)
-	; make sure to randomize x position after collision with floor!
-	; (but don't ever give starting position for hey gurl)
+chkcollisions:	
+	; check collisions (floor), player)
+	jsr collisions
 
 
 chkframerate:
@@ -463,7 +461,6 @@ tickupdates:
 	; Initialize the new item here?
 	; for now just initialize it as a cake
 
-	
 	; Take x value, the 1+xth tile is now a cake
 	; $0201 + (x*4) to get current tile
 	txa
@@ -471,7 +468,31 @@ tickupdates:
 	rol
 	tay
 	
+	jsr updatetile	
+	
+checkchoices:
+	lda itemchoices
+	cmp #%10000000	; Check if already hardest setting
+	beq frameupdate
+	asl		; Rotate one more cake off list
+	sta itemchoices
 
+frameupdate:
+	ldx fallframerate
+	cpx #5
+	beq keepcounting
+	
+	txa
+	sec
+	sbc #25
+	lda #1
+	sta fallframerate
+
+keepcounting:
+	rts	
+
+
+updatetile:	
 	ldx randomnum2	; 1 of 8 choices for bomb/cake
 	txa
 	clc
@@ -524,28 +545,53 @@ makenewitem:
 	adc #$5F
 
 	sta $0203,y		; Store starting x-coord
+	rts
 
-	
-checkchoices:
-	lda itemchoices
-	cmp #%10000000	; Check if already hardest setting
-	beq frameupdate
-	asl		; Rotate one more cake off list
-	sta itemchoices
+collisions:
 
-frameupdate:
-	ldx fallframerate
-	cpx #5
-	beq keepcounting
+	; make sure to randomize x position after collision with floor!
+	; (but don't ever give starting position for hey gurl)
 	
+	;0201,0205,0209,020D, etc
+
+	; Check if the tile is active
+	ldx #0
+collisionloop
 	txa
-	sec
-	sbc #25
-	lda #1
-	sta fallframerate
+	asl
+	asl
+	tay
+	lda $0201,y
+	
+	; Check if cake or bomb
+	; Bomb
+	cmp #$02
+	beq playercollide
+	
+	; Cake
+	cmp #$05
+	beq playercollide
 
-keepcounting:
-	rts	
+	jmp finishedtile
+
+playercollide:
+	; Check if it's hitting player
+	;TODO: will do this after getting floor done
+
+floorcollide:
+	; Check if it's hitting floor
+	lda $0200,y
+	cmp #$90
+	bne finishedtile
+	jsr updatetile
+	
+
+finishedtile:
+	inx
+	cpx #8
+	bne collisionloop
+
+	rts
 
 
 ; Move items
@@ -577,25 +623,54 @@ checkmove:
 	;x-coord will never change here
 	;only care about tile and y-coord
 	
-	iny	; skip x-coord
 	
 	;0204-0207 item 1
-	lda $0200,y
+	lda $0201,y
 	; explosion1 check
 	cmp #$03
 	bne exp2chk	; If not explosion1, chk if explosion2
-	lda #$04
-	sta $0200,y
-	jmp donemoving
-	
+	jmp doexplosion	
 exp2chk:
 	; explosion2 check
-	lda $0200,y
+	lda $0201
 	cmp #$04
 	bne cakebombchk	; If not explosion2, chk if cake/bomb
+doexplosion:
+	ldx #5
+pushtopbits:
+	lda $0202,y
+	cmp #%00000011
+	beq makenew
+	ror
+	clc
+	dex
+	cpx #0
+	bne pushtopbits
+
+	; end up with 00000111 first time
+	; subtract 1
+	sec
+	sbc #1
+	; bump it back up
+	asl
+	asl
+	asl
+	asl
+	asl
+	sta $0202,y
+	jmp donemoving
 	
-	; We don't want it to be an explosion anymore
-	; pick a new item
+makenew:
+	; if expl1, make expl2
+	lda $0201,y
+	cmp #03
+	beq makeexpl2
+	; must be expl2
+	jsr updatetile
+	jmp donemoving
+makeexpl2:
+	lda #04
+	sta $0201,y
 
 	jmp donemoving
 
