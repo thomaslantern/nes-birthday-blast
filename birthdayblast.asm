@@ -26,6 +26,10 @@ tickup equ $07
 maxitems equ $08
 fallframerate equ $09
 temppos equ $0A
+movetimer equ $0B
+randomnum1 equ $0C
+randomnum2 equ $0D
+
 
 
 bombcount equ $10	; TODO: may be unnecessary
@@ -38,6 +42,11 @@ nmihandler:
 
 	jsr readcontroller
 	
+	ldx movetimer
+	inx
+	stx movetimer
+
+
 	ldx tickdown
 	dex
 	stx tickdown
@@ -57,12 +66,11 @@ chkcollisions:
 
 chkframerate:
 	
-	; Only move if fallframerate + tickdown < 60
-	lda tickdown
-	clc
-	adc #fallframerate
-	cmp #60
-	bpl storenewpos
+	; Only move if fallframerate = tickdown
+	lda movetimer
+	cmp #fallframerate
+
+	bne storenewpos
 
 	jsr moveitems
 
@@ -78,9 +86,32 @@ storenewpos:
 	lda #$02
 	sta $4014
 
+
+	lda randomnum1
+	clc
+	adc playerpos
+	clc
+	adc itemchoices
+	clc
+	adc playerlives
+	clc
+	adc tickdown
+	sta randomnum1	
+	
+	lda randomnum2
+	adc playerscore_lo
+	clc
+	adc playerscore_hi
+	clc	
+	adc tickdown
+	clc
+	adc tickup
+	clc
+	adc fallframerate
+	sta randomnum2
+
 	plp
 	pla
-
 	rti
 	
 
@@ -295,6 +326,9 @@ birthday:
 	lda #30
 	sta fallframerate	; takes 30 frames to move down	
 	
+	lda #0
+	sta movetimer
+
 	lda #1
 	sta maxitems		; only 1 item falling at start
 
@@ -403,7 +437,7 @@ noadd:
 tickupdates:
 	; check to add tick up (tickdown == 0; reset tickdown)
 	; check to add maxitems (tickup == 60; reset tickup)
-	; check to sub fallframerate (tickup == 60; reset tickup)
+	; check to inc fallframerate (tickup == 60; reset tickup)
 	lda #60
 	sta tickdown
 
@@ -411,7 +445,7 @@ tickupdates:
 	clc
 	adc #1
 	sta tickup
-	cmp #60		; Has a minute passed?
+	cmp #5		; Has a minute passed?
 	bne keepcounting
 
 	; Reset tickup, update maxitems, fallframerate
@@ -437,19 +471,61 @@ tickupdates:
 	rol
 	tay
 	
+
+	ldx randomnum2	; 1 of 8 choices for bomb/cake
+	txa
+	clc
+	lsr
+	clc
+	lsr
+	clc
+	lsr
+	clc
+	lsr
+	clc
+	lsr		; now only bottom 3 bits relevant (0-7)
+	tax
+
+
+	lda itemchoices	
+	sta temppos
+cakeorbomb:
+	lda temppos
+	lsr
+	sta temppos
+	dex
+	cpx #0
+	bne cakeorbomb
+	
+	lda temppos
+	and #%00000001	; Keep only bottom bit
+	cmp #1
+	bne itsabomb
+
+itsacake:
 	lda #5
+	jmp makenewitem
+itsabomb:
+	lda #2
+makenewitem:	
+	
 	sta $0201,y
 	lda #$30
 	sta $0200,y		; Store starting y-coord
 	
 	lda #$02
 	sta $0202,y
-	lda #$3F
+
+	lda randomnum2
+	adc randomnum1
+	and #%00111111
+	sta temppos
+	clc
+	adc #$5F
+
 	sta $0203,y		; Store starting x-coord
 
 	
-
-
 checkchoices:
 	lda itemchoices
 	cmp #%10000000	; Check if already hardest setting
@@ -464,7 +540,8 @@ frameupdate:
 	
 	txa
 	sec
-	sbc #5
+	sbc #25
+	lda #1
 	sta fallframerate
 
 keepcounting:
@@ -475,6 +552,7 @@ keepcounting:
 moveitems:
 
 	ldx #0
+	stx movetimer	; Reset movetimer
 checkmove:
 	lda $2002
 	inx
