@@ -1,5 +1,5 @@
-	; Basic Controller Program
-	; by Thomas Wesley Scott, 2023
+	; Birthday Blast!
+	; © Thomas Wesley Scott, 2023
 
 	; Code starts at $C000.
 	; org jump to $BFFO for header info
@@ -29,6 +29,7 @@ temppos equ $0A
 movetimer equ $0B
 randomnum1 equ $0C
 randomnum2 equ $0D
+expct equ $0E		; variable to count explosion animation
 
 
 
@@ -581,8 +582,16 @@ playercollide:
 floorcollide:
 	; Check if it's hitting floor
 	lda $0200,y
-	cmp #$90
+	cmp #$98
 	bne finishedtile
+	
+	lda $0201,y
+	cmp #2		; Bomb check
+	bne noexplode
+	jsr doexplosion
+	jmp finishedtile
+
+noexplode:	
 	jsr updatetile
 	
 
@@ -632,47 +641,64 @@ checkmove:
 	jmp doexplosion	
 exp2chk:
 	; explosion2 check
-	lda $0201
+	lda $0201,y
 	cmp #$04
 	bne cakebombchk	; If not explosion2, chk if cake/bomb
 doexplosion:
-	ldx #5
-pushtopbits:
-	lda $0202,y
-	cmp #%00000011
-	beq makenew
-	ror
-	clc
-	dex
-	cpx #0
-	bne pushtopbits
 
-	; end up with 00000111 first time
-	; subtract 1
-	sec
-	sbc #1
-	; bump it back up
-	asl
-	asl
-	asl
-	asl
-	asl
-	sta $0202,y
-	jmp donemoving
-	
-makenew:
-	; if expl1, make expl2
+	; Check if tile is bomb (starting new explosion)
+	; If it is, load values into expct
+
 	lda $0201,y
-	cmp #03
-	beq makeexpl2
-	; must be expl2
+	cmp #2
+	beq initexp
+
+	; Continuing explosion sequence
+	; subtract the relevant bit (there are three in total)
+	; if all three are gone, stop being that kind of explosion
+	; (if going from exp1 to exp2, go to initexp??? I think so!
+	lda $0202,y
+	cmp #%00000010
+	beq bombanim1
+	cmp #%00000011
+	beq bombanim2
+	cmp #%00100011
+	beq bombanim3
+	cmp #%01100011
+	beq bombanim4
+	
+	lda $0201,y
+	cmp #3
+	beq initexp
 	jsr updatetile
 	jmp donemoving
-makeexpl2:
-	lda #04
-	sta $0201,y
 
+bombanim4:
+	lda #%11100011
+	sta $0202,y		
 	jmp donemoving
+bombanim3:
+	lda #%01100011
+	sta $0202,y		
+	jmp donemoving
+bombanim2:
+	lda #%00100011
+	sta $0202,y		
+	jmp donemoving
+bombanim1:
+	lda #%00000011
+	sta $0202,y
+	jmp donemoving
+
+initexp:
+	lda $0201,y
+	clc
+	adc #1
+	sta $0201,y
+	lda #%00000010
+	sta $0202,y
+	jmp donemoving
+
 
 cakebombchk:
 	; If it's not an explosion
@@ -680,19 +706,16 @@ cakebombchk:
 	; move down if it's on the screen
 	; and not busy colliding/killing someone
 	
-	dey	; move from tile number to y-coord
+	
 	lda $0200,y
 	clc
 	adc #1
 	sta $0200,y
-	
-	
-movedown:
+		
 
 donemoving:	
 	cpx maxitems
 	bne checkmove
-
 
 	rts
 	
