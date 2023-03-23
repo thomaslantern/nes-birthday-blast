@@ -181,7 +181,7 @@ spriteload:
 	lda sprites,x	; Load tiles, x and y attributes
 	sta $0200,x
 	inx
-	cpx #$4
+	cpx #$04
 	bne spriteload
 
 
@@ -281,26 +281,47 @@ birthday:
 	cpx #$0E
 	bne birthday
 
-
-		
-	;this clump may be redundant-chk&dlt
-	clc
-	lda $08
-	adc #32
-	sta $08
 	lda $2002
-	lda $09
+	lda #$22
 	sta $2006
-	lda $08
+	lda #$C3
 	sta $2006
+	ldx #0
+livesandscore:
+	lda scorelivetiles,x
+	sta $2007
+	inx
+	cpx #5
+	bne livesandscore
 
+	lda $2002
+	lda #$22
+	sta $2006
+	lda #$E3
+	sta $2006
+	
+score:
+	lda scorelivetiles,x
+	sta $2007
+	inx
+	cpx #$F
+	bne score
 
-
+	; Reset scroll values
 	lda $2002
 	lda #$00
 	sta $2005
 	sta $2005
 	
+
+	ldx #0
+scoresprites:
+	lda scoresprite,x	; Load tiles, x and y attributes
+	sta $0224,x
+	inx
+	cpx #$0C
+	bne scoresprites
+
 
 	; Initialization of game data
 
@@ -746,6 +767,15 @@ backgrounddata_words:
 	db $09,$02,$11,$11,$1A			; HAPPY
 	db $03,$0A,$13,$15,$09,$05,$02,$1A, $1C	; BIRTHDAY
 
+scorelivetiles:
+	db $0D, $0A, $17, $06, $14	; LIVES
+	db $14, $04, $10, $13, $06, $2C, $10, $10, $10, $10 ; SCORE 0000
+
+scoresprite:
+
+	db $AE, $00, $02, $45 ; Girl #1
+	db $AE, $00, $02, $4D ; Girl #1
+	db $AE, $00, $02, $55 ; Girl #1
 
 
 
