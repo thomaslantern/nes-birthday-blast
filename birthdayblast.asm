@@ -579,6 +579,7 @@ collisions:
 	; Check if the tile is active
 	ldx #0
 collisionloop
+	inx
 	txa
 	asl
 	asl
@@ -598,14 +599,73 @@ collisionloop
 
 playercollide:
 	; Check if it's hitting player
-	;TODO: will do this after getting floor done
+
+	
+	lda $0200,y
+	sec
+	sbc #$91	; Checking if low enough to collide
+	bpl colcheck
+
+	jmp floorcollide
+colcheck:
+
+	lda $0203,y
+	sta temppos	; Store item x-position
+
+	lda $0203	; Player x-position
+	sec
+	sbc temppos	
+	sta temppos
+	cmp #0
+	bpl colplayerleft
+
+
+colplayerright:
+	; Player is on the right side, which
+	; makes subtraction necessarily negative		
+	
+	; add something to it that will make it positive
+	; ONLY if it's greater than -9:
+	clc
+	adc #8
+	cmp #0
+	bpl connected	; Check whether points or dead lol
+	jmp floorcollide
+colplayerleft
+	; Player is on the left side, which
+	; makes subtraction necessarily positive
+	
+	; subtract something from it that will make it
+	; positive ONLY if it's less than 9:
+	sec
+	sbc #8
+	cmp #0
+	bpl connected	; Dead/Point check lol
+	jmp floorcollide
+connected:
+	lda $0201,y
+	cmp #5
+	bne boom
+cakepoints:
+	jmp finishedtile
+boom:
+	lda #$50
+	sta playerpos
+	lda playerlives
+	sec
+	sbc #1
+	jsr loselife
+	bpl explodingtime
+		
+
 
 floorcollide:
 	; Check if it's hitting floor
 	lda $0200,y
 	cmp #$98
 	bne finishedtile
-	
+
+explodingtime:
 	lda $0201,y
 	cmp #2		; Bomb check
 	bne noexplode
@@ -617,7 +677,7 @@ noexplode:
 	
 
 finishedtile:
-	inx
+	
 	cpx #8
 	bne collisionloop
 
@@ -739,6 +799,29 @@ donemoving:
 	bne checkmove
 
 	rts
+
+loselife:
+life3:
+	lda $022D
+	cmp #00
+	bne life2
+	lda #03
+	sta $022D
+	rts
+life2:
+	lda $0229
+	cmp #00
+	bne life1
+	lda #03
+	sta $0229
+	rts
+
+life1:
+	jmp startgame
+
+updatescore:
+	jmp startgame
+
 	
 
 
