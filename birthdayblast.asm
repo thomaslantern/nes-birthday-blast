@@ -586,9 +586,17 @@ collisionloop
 	tay
 	lda $0201,y
 	
-	; Check if cake or bomb
+	; Check if cake or bomb/explosion
 	; Bomb
 	cmp #$02
+	beq playercollide
+
+	; Explosion 1
+	cmp #$03
+	beq playercollide
+
+	; Explosion 2
+	cmp #$04
 	beq playercollide
 	
 	; Cake
@@ -615,31 +623,27 @@ colcheck:
 	lda $0203	; Player x-position
 	sec
 	sbc temppos	
-	sta temppos
-	cmp #0
-	bpl colplayerleft
+	bmi colplayerleft
 
 
 colplayerright:
 	; Player is on the right side, which
-	; makes subtraction necessarily negative		
+	; makes subtraction necessarily positive		
 	
-	; add something to it that will make it positive
-	; ONLY if it's greater than -9:
-	clc
-	adc #8
-	cmp #0
-	bpl connected	; Check whether points or dead lol
+	; subtract 9, will be negative if within 8 pixels
+	
+	sec
+	sbc #9
+	bmi connected	; Check whether points or dead lol
 	jmp floorcollide
 colplayerleft
 	; Player is on the left side, which
-	; makes subtraction necessarily positive
+	; makes subtraction necessarily negative
 	
-	; subtract something from it that will make it
+	; add something from it that will make it
 	; positive ONLY if it's less than 9:
-	sec
-	sbc #8
-	cmp #0
+	clc
+	adc #8
 	bpl connected	; Dead/Point check lol
 	jmp floorcollide
 connected:
@@ -647,6 +651,7 @@ connected:
 	cmp #5
 	bne boom
 cakepoints:
+	jsr updatetile
 	jmp finishedtile
 boom:
 	lda #$50
