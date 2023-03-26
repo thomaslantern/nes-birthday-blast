@@ -69,14 +69,11 @@ chkframerate:
 	; Only move if fallframerate = tickdown
 	lda movetimer
 	cmp #fallframerate
+	
 
 	bne storenewpos
 
 	jsr moveitems
-
-
-	; check add new items? (run through all items until maxitems reached)
-	; ^^ roll new item if necessary?		
 
 	
 storenewpos:
@@ -243,7 +240,7 @@ bkgd_floor:
 	bne bkgd_floor
 
 
-bkgd_words:		; "Happy Birthday Tommy!" tiles
+bkgd_words:		; "Happy Birthday!" tiles
 	lda #$20
 	sta $09
 	lda #$2C
@@ -452,8 +449,6 @@ checkleft:
 		adc #255	; Add 255 (= -1) to position
 		sta playerpos	; Store in playerpos
 		jsr animategirl
-
-
 noadd:
 	rts	
 
@@ -498,7 +493,7 @@ tickupdates:
 	
 checkchoices:
 	lda itemchoices
-	cmp #%10000000	; Check if already hardest setting
+	cmp #%11100000	; Check if already hardest setting
 	beq frameupdate
 	asl		; Rotate one more cake off list
 	sta itemchoices
@@ -612,7 +607,6 @@ collisionloop
 playercollide:
 	; Check if it's hitting player
 
-	
 	lda $0200,y
 	sec
 	sbc #$91	; Checking if low enough to collide
@@ -634,22 +628,24 @@ colplayerright:
 	; Player is on the right side, which
 	; makes subtraction necessarily positive		
 	
-	; subtract 9, will be negative if within 8 pixels
+	; subtract 6, will be negative if within 5 pixels
 	
 	sec
-	sbc #9
+	sbc #6
 	bmi connected	; Check whether points or dead lol
 	jmp floorcollide
+
 colplayerleft
 	; Player is on the left side, which
 	; makes subtraction necessarily negative
 	
 	; add something from it that will make it
-	; positive ONLY if it's less than 9:
+	; positive ONLY if it's less than 6:
 	clc
-	adc #8
+	adc #5
 	bpl connected	; Dead/Point check lol
 	jmp floorcollide
+
 connected:
 	lda $0201,y
 	cmp #5
@@ -673,7 +669,7 @@ floorcollide:
 	; Check if it's hitting floor
 	lda $0200,y
 	cmp #$98
-	bne finishedtile
+	bmi finishedtile
 
 explodingtime:
 	lda $0201,y
