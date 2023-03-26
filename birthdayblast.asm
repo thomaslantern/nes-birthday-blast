@@ -19,9 +19,10 @@ itemchoices equ $00 	; variable for item choices; 1=cake, 0=bomb
 playerpos equ $01	; variable for player's position
 playerbuttons equ $02	; variable for player's buttons
 playerlives equ $03
-playerscore_lo equ $04
-playerscore_hi equ $05
-tickdown equ $06
+playerscore_hi equ $04
+playerscore_mid equ $05
+playerscore_lo equ $06
+tickdown equ $0F
 tickup equ $07
 maxitems equ $08
 fallframerate equ $09
@@ -335,9 +336,12 @@ scoresprites:
 	lda #3			; Start with 3 lives
 	sta playerlives
 	
-	lda #0
+	lda #29
 	sta playerscore_lo
+	sta playerscore_mid
 	sta playerscore_hi
+
+	lda #0
 	sta tickup		; number of seconds passed 
 
 	lda #60
@@ -651,6 +655,7 @@ connected:
 	cmp #5
 	bne boom
 cakepoints:
+	jsr updatescore	
 	jsr updatetile
 	jmp finishedtile
 boom:
@@ -824,8 +829,48 @@ life2:
 life1:
 	jmp startgame
 
+
 updatescore:
-	jmp startgame
+	
+	lda playerscore_lo
+	clc
+	adc #1
+	sta playerscore_lo
+	cmp #39
+	bne noaddcarry
+	lda #29
+	sta playerscore_lo
+	lda playerscore_mid
+	clc
+	adc #1
+	sta playerscore_mid
+	cmp #39
+	bne noaddcarry
+addcarry:
+	lda #29
+	sta playerscore_mid
+	lda playerscore_hi
+	clc
+	adc #1
+	sta playerscore_hi
+
+noaddcarry:
+	lda $2002
+	lda #$22 				;22e3 where it starts score numbahs
+	sta $2006
+	lda #$E9 		
+	sta $2006
+updating:
+	lda playerscore_hi
+	sta $2007
+	lda playerscore_mid
+	sta $2007
+	lda playerscore_lo
+	sta $2007
+	lda #0
+	sta $2005
+	sta $2005
+	rts
 
 	
 
@@ -857,7 +902,7 @@ backgrounddata_words:
 
 scorelivetiles:
 	db $0D, $0A, $17, $06, $14	; LIVES
-	db $14, $04, $10, $13, $06, $2C, $10, $10, $10, $10 ; SCORE 0000
+	db $14, $04, $10, $13, $06, $2C, $1D, $1D, $1D, $1D ; SCORE 0000
 
 scoresprite:
 
@@ -1178,6 +1223,16 @@ background_tile_start:
 	db %00000000
 	db %00010000
 	db %00010000
+	db $00, $00, $00, $00, $00, $00, $00, $00
+
+	db %00000000
+	db %01111100	; "0"
+	db %10000010
+	db %10000010
+	db %10000010
+	db %10000010
+	db %10000010
+	db %01111100
 	db $00, $00, $00, $00, $00, $00, $00, $00
 
 	db %00000000
