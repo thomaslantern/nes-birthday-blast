@@ -30,11 +30,7 @@ temppos equ $0A
 movetimer equ $0B
 randomnum1 equ $0C
 randomnum2 equ $0D
-expct equ $0E		; variable to count explosion animation
 
-
-
-bombcount equ $10	; TODO: may be unnecessary
 
 walkanimation equ $FF	; for walking animation of player
 
@@ -353,6 +349,9 @@ scoresprites:
 	lda #1
 	sta maxitems		; only 1 item falling at start
 
+	lda #4
+	sta walkanimation
+
 	; First cake
 	lda #$30
 	sta $0204		; Store starting y-coord
@@ -379,24 +378,20 @@ forever:
 
 ; Walking Animation
 animategirl:
-	ldx walkanimation
-	dex
-	cpx #0
-	beq movegirl
+	lda walkanimation
+	sec
+	sbc #16
+	bmi movegirl
 	rts
 movegirl:
-	ldx #4
-	stx walkanimation
 	lda $0201
-	cmp #$00
-	beq standnow
-	jmp walknow
+	beq walknow
 standnow:
-	lda #$01
+	lda #$00
 	sta $0201
 	rts
 walknow:
-	lda #$00
+	lda #$01
 	sta $0201
 	rts
 
@@ -435,6 +430,8 @@ checkright:
 		beq noadd	; If it is, don't move!
 		adc #1		; If it's not, add 1 to x-position
 		sta playerpos	; Store in playerpos
+		lda #%00000010
+		sta $0202
 		jsr animategirl
 checkleft:
 	lda playerbuttons
@@ -448,6 +445,8 @@ checkleft:
 		lda playerpos	; Ok to move
 		adc #255	; Add 255 (= -1) to position
 		sta playerpos	; Store in playerpos
+		lda #%01000010
+		sta $0202
 		jsr animategirl
 noadd:
 	rts	
@@ -587,21 +586,22 @@ collisionloop
 	
 	; Check if cake or bomb/explosion
 	; Bomb
-	cmp #$02
-	beq playercollide
+	;cmp #$02
+	;beq playercollide
 
 	; Explosion 1
-	cmp #$03
-	beq playercollide
+	;cmp #$03
+	;beq playercollide
 
 	; Explosion 2
-	cmp #$04
-	beq playercollide
+	;cmp #$04
+	;beq playercollide
 	
 	; Cake
-	cmp #$05
-	beq playercollide
-
+	;cmp #$05
+	;beq playercollide
+	bpl playercollide
+	
 	jmp finishedtile
 
 playercollide:
@@ -611,6 +611,7 @@ playercollide:
 	sec
 	sbc #$91	; Checking if low enough to collide
 	bpl colcheck
+
 
 	jmp floorcollide
 colcheck:
@@ -662,8 +663,6 @@ boom:
 	sbc #1
 	jsr loselife
 	bpl explodingtime
-		
-
 
 floorcollide:
 	; Check if it's hitting floor
@@ -671,9 +670,17 @@ floorcollide:
 	cmp #$98
 	bmi finishedtile
 
+	lda $0201,y
+	cmp #3
+	beq finishedtile
+	cmp #4
+	beq finishedtile
+
 explodingtime:
+	
 	lda $0201,y
 	cmp #2		; Bomb check
+
 	bne noexplode
 	jsr doexplosion
 	jmp finishedtile
@@ -734,11 +741,11 @@ exp2chk:
 doexplosion:
 
 	; Check if tile is bomb (starting new explosion)
-	; If it is, load values into expct
-
+	
 	lda $0201,y
 	cmp #2
 	beq initexp
+
 
 	; Continuing explosion sequence
 	; subtract the relevant bit (there are three in total)
@@ -778,6 +785,7 @@ bombanim1:
 	jmp donemoving
 
 initexp:
+
 	lda $0201,y
 	clc
 	adc #1
@@ -792,8 +800,7 @@ cakebombchk:
 	; it must be a bomb or cake
 	; move down if it's on the screen
 	; and not busy colliding/killing someone
-	
-	
+		
 	lda $0200,y
 	clc
 	adc #1
@@ -1443,9 +1450,6 @@ sprite_tile_start:
 	db %00000000	
 
 
-	
-
-
 sprite_tile_end
 
 	
@@ -1453,4 +1457,3 @@ chr_rom_end:
 
 ; Pad chr-rom to 8k(to make valid file)
 	ds 8192-(chr_rom_end-chr_rom_start)
-
