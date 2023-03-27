@@ -988,7 +988,7 @@ checkmove:
 	; First tile is player
 	; Next 7 tiles are potential/actual items
 	; Loop through them, if it's explosion 1,
-	, set to explosion 2. If it's a bomb or a cake, 
+	; set to explosion 2. If it's a bomb or a cake, 
 	; move it down.
 
 	
