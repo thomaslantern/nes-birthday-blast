@@ -201,6 +201,7 @@ skipnote:
 
 	jsr readcontroller
 	
+	
 	ldx movetimer
 	inx
 	stx movetimer
@@ -210,7 +211,6 @@ skipnote:
 	dex
 	stx tickdown
 	cpx #0
-	
 	bne chkcollisions
 	
 	jsr tickupdates
@@ -468,6 +468,11 @@ score:
 	
 
 	ldx #0
+
+
+; We are using sprites to show the number of lives
+; because the tile used is the same as the player
+
 scoresprites:
 	lda scoresprite,x	; Load tiles, x and y attributes
 	sta $0224,x
@@ -479,7 +484,7 @@ scoresprites:
 	; Initialization of game data
 
 
-	lda #%11111111		; All cakes as options to start
+	lda #%11111111		; All cakes as options to start (0 is bomb)
 	sta itemchoices
 
 	lda #$5A		; Player position
@@ -488,25 +493,25 @@ scoresprites:
 	lda #3			; Start with 3 lives
 	sta playerlives
 	
-	lda #29
+	lda #29			; 29th tile is zero tile
 	sta playerscore_lo
 	sta playerscore_mid
 	sta playerscore_hi
 
 	lda #0
-	sta tickup		; number of seconds passed 
+	sta tickup		; Number of seconds passed 
 
 	lda #60
-	sta tickdown		; frames in a second	
+	sta tickdown		; Frames in a second	
 
-	lda #15
-	sta fallframerate		
+	lda #15			; Number of frames before
+	sta fallframerate	; items move down
 	
-	lda #0
-	sta movetimer
+	lda #0			; Used to determine when
+	sta movetimer		; items should move down
 
 	lda #1
-	sta maxitems		; only 1 item falling at start
+	sta maxitems		; Only 1 item falling at start
 
 	lda #4
 	sta walkanimation
@@ -626,21 +631,21 @@ decreasecount:
 
 ; Table of different notes and their values
 notes:	
-	dw $07F1, $0780, $0713 						; A1 to B1 ($00-$02)
+	dw $07F1, $0780, $0713 				; A1 to B1 ($00-$02)
 	dw $06AD, $064D, $05F3, $059D, $054D, $0500	; C2 to F2 ($03-$08)
-	dw $04B8, $0475, $0435, $03F8, $03BF, $0389 ; F#2 to B2 ($09-$0E)
+	dw $04B8, $0475, $0435, $03F8, $03BF, $0389 	; F#2 to B2 ($09-$0E)
 	dw $0356, $0326, $02F9, $02CE, $02A6, $027F	; C3 to F3 ($0F-$15)
-	dw $025C, $023A, $021A, $01FB, $01DF, $01C4 ; F#3 to B3 ($16-$1A)
+	dw $025C, $023A, $021A, $01FB, $01DF, $01C4 	; F#3 to B3 ($16-$1A)
 	dw $01AB, $0193, $017C, $0167, $0151, $013F	; C4 to F4 ($1B-$20)
-	dw $012D, $011C, $010C, $00FD, $00EF, $00E2 ; F#4 to B4 ($20-$26)
+	dw $012D, $011C, $010C, $00FD, $00EF, $00E2	; F#4 to B4 ($20-$26)
 	dw $00D2, $00C9, $00BD, $00B3, $00A9, $009F	; C5 to F5 ($27-$2C)
-	dw $0096, $008E, $0086, $007E, $0077, $0070 ; F#5 to B5 ($2D-$32)
+	dw $0096, $008E, $0086, $007E, $0077, $0070 	; F#5 to B5 ($2D-$32)
 	dw $006A, $0064, $005E, $0059, $0054, $004F	; C6 to F6 ($33-$38)
-	dw $004B, $0046, $0042, $003F, $003B, $0038 ; F#6 to B6 ($39-$3E)
+	dw $004B, $0046, $0042, $003F, $003B, $0038 	; F#6 to B6 ($39-$3E)
 	dw $0034, $0031, $002F, $002C, $0029, $0027	; C7 to F7 ($3F-$45)
-	dw $0025, $0023, $0021, $001F, $001D, $001B ; F#7 to B7 ($46-$4A)
+	dw $0025, $0023, $0021, $001F, $001D, $001B 	; F#7 to B7 ($46-$4A)
 	dw $001A, $0018, $0017, $0015, $0014, $0013	; C8 to F8 ($4B-$50)
-	dw $0012, $0011, $0010, $000F, $000E, $000D ; F#8 to B8 ($51-$56)
+	dw $0012, $0011, $0010, $000F, $000E, $000D 	; F#8 to B8 ($51-$56)
 	dw $000C, $000C, $000B, $000A, $000A, $0009, $0008 ; C9 to F#9 ($57-$5D)
 
 ; Notes to the song ("Happy Birthday")
@@ -664,18 +669,18 @@ birthday_length:
 animategirl:
 	lda walkanimation
 	sec
-	sbc #16
-	bmi movegirl
+	sbc #16		; Animation updates for every
+	bmi movegirl	; 16 frames of walking (approx.)
 	rts
 movegirl:
 	lda $0201
 	beq walknow
 standnow:
-	lda #$00
+	lda #$00	; Standing tile
 	sta $0201
 	rts
 walknow:
-	lda #$01
+	lda #$01	; Walking tile
 	sta $0201
 	rts
 
@@ -738,11 +743,10 @@ noadd:
 
 tickupdates:
 	; check to add tick up (tickdown == 0; reset tickdown)
-	; check to add maxitems (tickup == 60; reset tickup)
-	; check to inc fallframerate (tickup == 60; reset tickup)
+	; check to add maxitems (tickup == 5; reset tickup)
+	; check to decrease fallframerate (tickup == 5; reset tickup)
 	lda #60
 	sta tickdown
-
 
 
 	lda tickup
@@ -765,8 +769,7 @@ tickupdates:
 
 	inx
 	stx maxitems	; One more item can fall now
-	; Initialize the new item here?
-	; for now just initialize it as a cake
+	
 
 	; Initialize the xth item
 	; $0201 + (x*4) to get current tile
@@ -789,7 +792,7 @@ frameupdate:
 	beq keepcounting
 	
 	sec
-	sbc #1
+	sbc #1		; One less frame before items move
 	sta fallframerate
 
 keepcounting:
@@ -808,8 +811,8 @@ updatetile:
 	clc
 	lsr
 	clc
-	lsr		; now only bottom 3 bits relevant (0-7)
-	tax
+	lsr		; Now only bottom 3 bits relevant (0-7)
+	tax		; Transfer "random" number (0 to 7) to x
 
 
 	lda itemchoices	
@@ -841,23 +844,20 @@ makenewitem:
 	lda #$02
 	sta $0202,y
 
-	lda randomnum2
+	lda randomnum2		; Setup for "random" x-coord
 	adc randomnum1
 	and #%00111111
 	sta temppos
 	clc
-	adc #$5F
+	adc #$5F		; Offset by at least $5F on screen
 
 	sta $0203,y		; Store starting x-coord
 	rts
 
+
 collisions:
 
-	; make sure to randomize x position after collision with floor!
-	; (but don't ever give starting position for hey gurl)
 	
-	;0201,0205,0209,020D, etc
-
 	; Check if the tile is active
 	ldx #0
 collisionloop
@@ -866,25 +866,9 @@ collisionloop
 	asl
 	asl
 	tay
+
 	lda $0201,y
-	
-	; Check if cake or bomb/explosion
-	; Bomb
-	;cmp #$02
-	;beq playercollide
-
-	; Explosion 1
-	;cmp #$03
-	;beq playercollide
-
-	; Explosion 2
-	;cmp #$04
-	;beq playercollide
-	
-	; Cake
-	;cmp #$05
-	;beq playercollide
-	bpl playercollide
+	bpl playercollide	; All active tiles have value < 127 (positive)
 	
 	jmp finishedtile
 
@@ -893,8 +877,8 @@ playercollide:
 
 	lda $0200,y
 	sec
-	sbc #$91	; Checking if low enough to collide
-	bpl colcheck
+	sbc #$91	; Checking if y-coord is low enough
+	bpl colcheck	; Positive means it's at least that low
 
 
 	jmp floorcollide
@@ -917,7 +901,7 @@ colplayerright:
 	
 	sec
 	sbc #6
-	bmi connected	; Check whether points or dead lol
+	bmi connected		; Collision!
 	jmp floorcollide
 
 colplayerleft
@@ -928,21 +912,21 @@ colplayerleft
 	; positive ONLY if it's less than 6:
 	clc
 	adc #5
-	bpl connected	; Dead/Point check lol
+	bpl connected		; Collision!
 	jmp floorcollide
 
 connected:
 	lda $0201,y
 	cmp #5
-	bne boom
+	bne boom		; Go boom if not a cake
 cakepoints:
-	jsr updatescore	
+	jsr updatescore		; Points for cake!
 	jsr updatetile
 	jmp finishedtile
 boom:
-	lda #$50
+	lda #$50		; Player re-start
 	sta playerpos
-	lda playerlives
+	lda playerlives		; Lose a life!
 	sec
 	sbc #1
 	jsr loselife
@@ -952,10 +936,13 @@ floorcollide:
 	; Check if it's hitting floor
 	lda $0200,y
 	cmp #$98
-	bmi finishedtile
+	bmi finishedtile	; Negative means it's above this spot
 
+
+	; Check to see if already exploding
+	; Skip to next tile if so
 	lda $0201,y
-	cmp #3
+	cmp #3			
 	beq finishedtile
 	cmp #4
 	beq finishedtile
@@ -963,7 +950,7 @@ floorcollide:
 explodingtime:
 	
 	lda $0201,y
-	cmp #2		; Bomb check
+	cmp #2		; Verify it's a bomb
 
 	bne noexplode
 	jsr doexplosion
@@ -975,7 +962,7 @@ noexplode:
 
 finishedtile:
 	
-	cpx #8
+	cpx #8		; 8 possible falling tiles
 	bne collisionloop
 
 	rts
@@ -998,43 +985,38 @@ checkmove:
 	tay
 
 	;0200-0203 y-coord, tile#, attrib, x-coord
-	; first tile is player
-	; next 7 tiles are potential/actual items
-	; loop through them
-	; if it's explosion 1, set to explosion 2
-	; if it's a bomb or a cake, move it down
-	; (assuming we've already checked collision with player/floors
+	; First tile is player
+	; Next 7 tiles are potential/actual items
+	; Loop through them, if it's explosion 1,
+	, set to explosion 2. If it's a bomb or a cake, 
+	; move it down.
 
 	
-	;attrib irrelevant
-	;x-coord will never change here
-	;only care about tile and y-coord
-	
-	
-	;0204-0207 item 1
 	lda $0201,y
-	; explosion1 check
+	
+	; Explosion tile 1 check
 	cmp #$03
-	bne exp2chk	; If not explosion1, chk if explosion2
+	bne exp2chk	; If not explosion tile 1, chk tile 2
 	jmp doexplosion	
 exp2chk:
 	; explosion2 check
 	lda $0201,y
 	cmp #$04
-	bne cakebombchk	; If not explosion2, chk if cake/bomb
+	bne cakebombchk	; If not explosion, check if cake/bomb
+
+
 doexplosion:
 
 	; Check if tile is bomb (starting new explosion)
-	
 	lda $0201,y
 	cmp #2
 	beq initexp
 
 
 	; Continuing explosion sequence
-	; subtract the relevant bit (there are three in total)
-	; if all three are gone, stop being that kind of explosion
-	; (if going from exp1 to exp2, go to initexp??? I think so!
+	; Subtract the relevant bit (there are three in total).
+	; If all three are gone, stop being that kind of explosion
+	; (if going from exp1 to exp2, go to initexp)
 	lda $0202,y
 	cmp #%00000010
 	beq bombanim1
@@ -1051,6 +1033,7 @@ doexplosion:
 	jsr updatetile
 	jmp donemoving
 
+	;Bomb animation data
 bombanim4:
 	lda #%11100011
 	sta $0202,y		
@@ -1068,8 +1051,11 @@ bombanim1:
 	sta $0202,y
 	jmp donemoving
 
-initexp:
 
+	
+initexp:
+	; Turn from bomb to explosion1,
+	; or explosion1 to explosion2
 	lda $0201,y
 	clc
 	adc #1
@@ -1080,10 +1066,10 @@ initexp:
 
 
 cakebombchk:
-	; If it's not an explosion
-	; it must be a bomb or cake
-	; move down if it's on the screen
-	; and not busy colliding/killing someone
+	; If it's not an explosion,
+	; it must be a bomb or cake,
+	; so move it down
+	
 		
 	lda $0200,y
 	clc
@@ -1096,6 +1082,7 @@ donemoving:
 	bne checkmove
 
 	rts
+
 
 loselife:
 life3:
@@ -1126,7 +1113,7 @@ updatescore:
 	cmp #39
 	bne noaddcarry
 	lda #29
-	sta playerscore_lo
+	sta playerscore_lo	; Reset to 0 (added 1 to 9)
 	lda playerscore_mid
 	clc
 	adc #1
@@ -1142,8 +1129,11 @@ addcarry:
 	sta playerscore_hi
 
 noaddcarry:
+	; Go to namespace address for score tiles
+	; and update them
+
 	lda $2002
-	lda #$22 				;22e3 where it starts score numbahs
+	lda #$22 		
 	sta $2006
 	lda #$E9 		
 	sta $2006
@@ -1159,7 +1149,10 @@ updating:
 	sta $2005
 	rts
 
-	
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Music and graphics data ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 initial_palette:
