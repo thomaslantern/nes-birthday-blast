@@ -15,9 +15,9 @@
 	db 0,0,0,0,0,0,0
 
 
-itemchoices equ $00 	; variable for item choices; 1=cake, 0=bomb
-playerpos equ $01	; variable for player's position
-playerbuttons equ $02	; variable for player's buttons
+itemchoices equ $00 	
+playerpos equ $01		
+playerbuttons equ $02	
 playerlives equ $03
 playerscore_hi equ $04
 playerscore_mid equ $05
@@ -30,13 +30,17 @@ temppos equ $0A
 movetimer equ $0B
 randomnum1 equ $0C
 randomnum2 equ $0D
-
-
-walkanimation equ $FF	; for walking animation of player
+walkanimation equ $FF	
 
 nmihandler:
 	pha
 	php
+
+	lda playerpos
+	sta $0203 
+
+	lda #$02
+	sta $4014
 
 	jsr readcontroller
 	
@@ -56,30 +60,28 @@ nmihandler:
 	
 
 chkcollisions:	
-	; check collisions (floor), player)
+	; Check collisions with either floor or player
 	jsr collisions
 
 
 chkframerate:
 	
-	; Only move if fallframerate = tickdown
+	; Only move if fallframerate = movetimer
 	lda movetimer
-	cmp #fallframerate
+	cmp fallframerate
 	
 
-	bne storenewpos
+	bmi randomizer
+	
 
+	lda #0
+	sta movetimer
 	jsr moveitems
 
 	
-storenewpos:
-	lda playerpos
-	sta $0203 
+randomizer:
 
-	lda #$02
-	sta $4014
-
-
+	; "Random" number generators	
 	lda randomnum1
 	clc
 	adc playerpos
@@ -149,6 +151,8 @@ clearmemory:		; Clear all memory info
 waitvblank2:
 	bit $2002	; Check PPU Status one more time
 	bpl waitvblank2	; before we start loading in graphics	
+
+	; Load palettes
 	lda $2002
 	ldx #$3F
 	stx $2006
@@ -161,13 +165,11 @@ copypalloop:
 	cpx #$20
 	bcc copypalloop
 
-	ldx #4
-	stx walkanimation
 
 	lda $2002
 
 	
-	ldx #$02 	; Set SPR-RAM address to 0
+	ldx #$02
 	stx $4014
 
 	ldx #0
@@ -340,8 +342,8 @@ scoresprites:
 	lda #60
 	sta tickdown		; frames in a second	
 
-	lda #30
-	sta fallframerate	; takes 30 frames to move down	
+	lda #15
+	sta fallframerate		
 	
 	lda #0
 	sta movetimer
@@ -459,12 +461,15 @@ tickupdates:
 	lda #60
 	sta tickdown
 
+
+
 	lda tickup
 	clc
 	adc #1
 	sta tickup
-	cmp #5		; Has a minute passed?
+	cmp #5		; Check to add new item drop
 	bne keepcounting
+
 
 	; Reset tickup, update maxitems, fallframerate
 	; and add one more bomb to item choices
@@ -481,13 +486,12 @@ tickupdates:
 	; Initialize the new item here?
 	; for now just initialize it as a cake
 
-	; Take x value, the 1+xth tile is now a cake
+	; Initialize the xth item
 	; $0201 + (x*4) to get current tile
 	txa
 	rol
 	rol
 	tay
-	
 	jsr updatetile	
 	
 checkchoices:
@@ -498,14 +502,12 @@ checkchoices:
 	sta itemchoices
 
 frameupdate:
-	ldx fallframerate
-	cpx #5
+	lda fallframerate
+	cmp #0
 	beq keepcounting
 	
-	txa
 	sec
-	sbc #25
-	lda #1
+	sbc #1
 	sta fallframerate
 
 keepcounting:
@@ -818,14 +820,14 @@ life3:
 	lda $022D
 	cmp #00
 	bne life2
-	lda #03
+	lda #06
 	sta $022D
 	rts
 life2:
 	lda $0229
 	cmp #00
 	bne life1
-	lda #03
+	lda #06
 	sta $0229
 	rts
 
