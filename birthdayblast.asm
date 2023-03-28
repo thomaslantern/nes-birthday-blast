@@ -670,7 +670,7 @@ animategirl:
 	lda walkanimation
 	sec
 	sbc #16		; Animation updates for every
-	bmi movegirl	; 16 frames of walking (approx.)
+	bmi movegirl	; 8 frames of walking (approx.)
 	rts
 movegirl:
 	lda $0201
