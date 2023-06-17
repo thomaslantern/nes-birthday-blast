@@ -6,4 +6,12 @@ This is a fully functional demo of my first NES game, Birthday Blast! I made thi
 
 Probably not. But I wanted to learn how to program for the NES anyway, so I thought I'd "hack" my time and kill two birds with one stone, so to speak. Yes, it was more work, but it was ultimately more rewarding, too.
 
+<h1>How to Learn From Birthday Blast</h1>
+If you're fairly new to programming NES/ASM 6502, you may want to start with my other demo programs:
+
+https://github.com/thomaslantern/nes-hello-world
+https://github.com/thomaslantern/nes-basic-graphics
+https://github.com/thomaslantern/nes-basic-sound
+https://github.com/thomaslantern/nes-basic-controls
+
 
