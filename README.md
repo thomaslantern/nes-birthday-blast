@@ -15,3 +15,11 @@ If you're fairly new to programming NES/ASM 6502, you may want to start with my 
 <li>https://github.com/thomaslantern/nes-basic-controls</li>
 </ul>
 
+If you've gone through those tutorials (welcome back!), you're now ready for the epicness of Birthday Blast. So what now? Is there more to learn from this series? You bet! While Birthday Blast does build from its predecessors above, it combines their code and adds a few new subroutines. Here's a brief list of new additions that can't be found in the other tutorials:
+<ul>
+<li>Falling Bombs/li>
+<li>Colourful Explosions (ooh!)</li>
+<li>Score, Lives, and the Thrill of a Virtual Near-Death Experience (awesome!)</li>
+<li>Code that probably isn't optimized, cleverly disguised as a challenge to the reader (that's you!)</li>
+</ul>
+
