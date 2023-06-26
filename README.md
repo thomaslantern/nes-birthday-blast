@@ -23,3 +23,4 @@ If you've gone through those tutorials (welcome back!), you're now ready for the
 <li>Code that probably isn't optimized, cleverly disguised as a challenge to the reader (that's you!)</li>
 </ul>
 
+To be frank, there's a lot of new material in this tutorial. And if you understood the other four tutorials, there shouldn't be anything here that's too difficult to understand. (more soon...)
